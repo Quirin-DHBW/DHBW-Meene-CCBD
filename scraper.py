@@ -26,7 +26,13 @@ with duckdb.connect("bsky_posts.db") as db:
     """)
 
     # This part is for directly writing it into the db
-    resp = client.app.bsky.feed.search_posts(params={"q":"Trump", "limit":100})
+    resp = client.app.bsky.feed.search_posts(params={"q":"Trump", 
+                                                     "limit":100,
+                                                     "sort":"top",
+                                                     "since":"2025-03-30T00:00:00.000Z",
+                                                     "until":"2025-04-01T00:00:00.000Z"
+                                                    }
+                                            )
     for post in resp.posts:
         try:
             timestamp = post.record.created_at
