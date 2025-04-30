@@ -15,7 +15,7 @@ with open("login.txt", "r") as login:
 with duckdb.connect("bsky_posts.db") as db:
     db.execute("""
         CREATE TABLE IF NOT EXISTS posts (
-            timestamp TIMESTAMPZ,
+            timestamp TIMESTAMPTZ,
             text TEXT,
             uri TEXT,
             like_count INTEGER,
