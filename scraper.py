@@ -15,10 +15,9 @@ with open("login.txt", "r") as login:
 with duckdb.connect("bsky_posts.db") as db:
     pass
 
-
 # Stop this to prevent unnecessary scraping for now (don't need to use our limited daily API calls if I have a test set saved UwU)
 """
-resp = client.app.bsky.feed.search_posts(params={"q":"Book", "limit":100})
+resp = client.app.bsky.feed.search_posts(params={"q":"Trump", "limit":100})
 with open("pull.txt", "w", encoding="utf-8") as f:
     print(resp)
     for post in resp.posts:
@@ -26,6 +25,4 @@ with open("pull.txt", "w", encoding="utf-8") as f:
         f.write(cleaned_post_text + "\n")
 print(resp)
 """
-
-
 
