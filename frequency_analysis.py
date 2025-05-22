@@ -49,5 +49,5 @@ if __name__ == "__main__":
     top_words = counter.most_common(30)
     freq_df = pd.DataFrame(top_words, columns=["word", "count"])
 
-    fig = px.bar(freq_df, x="word", y="count", title="Top 30 häufige Begriffe (mit Synonymgruppen)")
+    fig = px.bar(freq_df, x="word", y="count", color="word", title="Top 30 häufige Begriffe (mit Synonymgruppen)")
     fig.show()
