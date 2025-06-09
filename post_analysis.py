@@ -9,7 +9,6 @@ from collections import Counter
 import plotly.express as px
 import plotly.graph_objects as go
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-import yfinance as yf
 import sys, os
 
 # Download necessary NLTK data
