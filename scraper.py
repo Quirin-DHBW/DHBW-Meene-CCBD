@@ -5,59 +5,92 @@ os.chdir(os.path.dirname(sys.argv[0]))
 from atproto import Client
 
 import duckdb
+from datetime import *
+from time import sleep
 
-client = Client()
-with open("login.txt", "r") as login:
-    creds = login.read().split("\n")
-    #print(creds)
-    client.login(creds[0], creds[1])
+SINCE = datetime(year=2024, month=1, day=1)
+UNTIL = datetime(year=2025, month=4, day=30)
+SINCE_TXT = SINCE.strftime("%Y%m%d")
+UNTIL_TXT = UNTIL.strftime("%Y%m%d")
+SEARCH_TERMS = ["Trump"]
+POSTS_PER_DAY = 100
 
-with duckdb.connect("bsky_posts.db") as db:
-    db.execute("""
-        CREATE TABLE IF NOT EXISTS posts (
-            timestamp TIMESTAMPTZ,
-            text TEXT,
-            uri TEXT,
-            like_count INTEGER,
-            quote_count INTEGER,
-            reply_count INTEGER,
-            repost_count INTEGER
-        )
-    """)
+DO_POST_FETCH = True
 
-    # This part is for directly writing it into the db
-    resp = client.app.bsky.feed.search_posts(params={"q":"Trump", 
-                                                     "limit":100,
-                                                     "sort":"top",
-                                                     "since":"2025-03-30T00:00:00.000Z",
-                                                     "until":"2025-04-01T00:00:00.000Z"
-                                                    }
-                                            )
-    for post in resp.posts:
-        try:
-            timestamp = post.record.created_at
-            text = post.record.text
-            uri = post.uri
-            like_count = post.like_count
-            quote_count = post.quote_count
-            reply_count = post.reply_count
-            repost_count = post.repost_count
 
-            db.execute("""
-                INSERT INTO posts (timestamp, text, uri, like_count, quote_count, reply_count, repost_count)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (timestamp, text, uri, like_count, quote_count, reply_count, repost_count))
-        except Exception as e:
-            print(f"Fehler beim Verarbeiten eines Posts: {e}")
+single_day = timedelta(days=1)
 
-# Stop this to prevent unnecessary scraping for now (don't need to use our limited daily API calls if I have a test set saved UwU)
-"""
-resp = client.app.bsky.feed.search_posts(params={"q":"Trump", "limit":100})
-with open("pull.txt", "w", encoding="utf-8") as f:
-    print(resp)
-    for post in resp.posts:
-        cleaned_post_text = post.record.text.replace("\n", " <b> ")
-        f.write(cleaned_post_text + "\n")
-print(resp)
-"""
+n_days_timeframe = ((UNTIL - SINCE) // single_day) + 1
+
+
+days = []
+for i in range(n_days_timeframe):
+    today_dt = SINCE + (i * single_day)
+    tomorrow_dt = SINCE + ((i + 1) * single_day)
+
+    today = today_dt.strftime("%Y-%m-%d")
+    tomorrow = tomorrow_dt.strftime("%Y-%m-%d")
+
+    days.append((today, tomorrow))
+
+
+if DO_POST_FETCH:
+    print("Logging in to Bluesky...")
+    client = Client()
+    with open("login.txt", "r") as login:
+        creds = login.read().split("\n")
+        #print(creds)
+        client.login(creds[0], creds[1])
+
+    with duckdb.connect(f"{SINCE_TXT}_{UNTIL_TXT}_posts.db") as db:
+        db.execute("""
+            CREATE TABLE IF NOT EXISTS posts (
+                timestamp TIMESTAMPTZ,
+                text TEXT,
+                uri TEXT,
+                like_count INTEGER,
+                quote_count INTEGER,
+                reply_count INTEGER,
+                repost_count INTEGER
+            )
+        """)
+        for term in SEARCH_TERMS:
+            for day in days:
+                print(f"Pulling posts for {term} on {day[0]}...", end="\r")
+                resp = None
+                resp_success = False
+                while not resp_success:
+                    resp = client.app.bsky.feed.search_posts(params={"q":term, 
+                                                                    "limit":POSTS_PER_DAY,
+                                                                    "sort":"top",
+                                                                    "since":f"{day[0]}T00:00:00.000Z",
+                                                                    "until":f"{day[1]}T00:00:00.000Z"
+                                                                    }
+                                                            )
+                    
+                    try:
+                        test = resp.posts[0].record.created_at
+                        resp_success = True
+                    except:
+                        print("Pull unsuccessful, retrying in a second...", end="\r")
+                        sleep(2)
+                        continue
+                
+
+                # This part is for directly writing it into the db
+                print("\nInserting posts into DB...")
+                for post in resp.posts:
+                    timestamp = post.record.created_at
+                    text = post.record.text
+                    uri = post.uri
+                    like_count = post.like_count
+                    quote_count = post.quote_count
+                    reply_count = post.reply_count
+                    repost_count = post.repost_count
+
+                    db.execute("""
+                        INSERT INTO posts (timestamp, text, uri, like_count, quote_count, reply_count, repost_count)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
+                    """, (timestamp, text, uri, like_count, quote_count, reply_count, repost_count))
+        print("Finished pulling posts.")
 
